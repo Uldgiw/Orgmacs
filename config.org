@@ -1,0 +1,500 @@
+#+Title: Orgmacs
+#+Startup: overview
+
+* Keybinding Scheme
+** Vim Emulation
+*** Evil Main
+#+begin_src emacs-lisp
+  (use-package evil
+    :init
+    (setq evil-undo-system 'undo-fu)
+    (setq evil-want-keybinding nil)
+    :config(evil-mode 1))
+
+#+end_src
+**** Undo
+See Evil-Main for the setting. (It has to be in the :init tag)
+#+BEGIN_SRC emacs-lisp
+  (use-package undo-fu)
+#+END_SRC
+**** Visual Line
+#+begin_src emacs-lisp
+  (define-key evil-normal-state-map (kbd "<remap> <evil-next-line>") 'evil-next-visual-line)
+  (define-key evil-normal-state-map (kbd "<remap> <evil-previous-line>") 'evil-previous-visual-line)
+  (define-key evil-motion-state-map (kbd "<remap> <evil-next-line>") 'evil-next-visual-line)
+  (define-key evil-motion-state-map (kbd "<remap> <evil-previous-line>") 'evil-previous-visual-line)
+
+  (setq-default evil-cross-lines t)
+#+end_src
+
+*** Evil Collection
+#+begin_src emacs-lisp
+
+  (use-package evil-collection
+    :after evil
+    :config
+    (setq evil-collection-company-use-tng nil)
+    (setq evil-collection-setup-minibuffer t)
+    (evil-collection-init))
+
+#+end_src
+*** Evil Extension
+**** Sorround
+#+begin_src emacs-lisp
+  (use-package evil-surround
+    :after evil
+    :config (global-evil-surround-mode 1))
+#+end_src
+**** Commenter
+#+begin_src emacs-lisp
+  (use-package evil-commentary
+    :after evil
+    :config
+    (evil-commentary-mode))
+#+end_src
+
+*** Evil Org
+#+begin_src emacs-lisp
+  (use-package evil-org
+    :after evil org
+    :hook (org-mode . evil-org-mode)
+    :config
+    (setq evil-want-C-i-jump nil)
+    (setq evil-org-special-o/O nil)
+    (evil-define-key 'normal org-mode-map (kbd "C-i") 'org-cycle)
+    )
+#+end_src
+*** Keybinds
+
+#+BEGIN_SRC emacs-lisp
+  (use-package general
+    :config
+
+    (defvar leader-key "SPC")
+    (defvar leader-map (make-sparse-keymap))
+
+    (define-prefix-command 'leader 'leader-map)
+
+    (defun init-leader-keys ()
+      (let ((map general-override-mode-map))
+        (evil-define-key* '(normal visual motion) map (kbd leader-key) 'leader)
+        (general-override-mode +1)))
+    (init-leader-keys)
+
+    (defmacro def-lead (&rest args)
+      `(general-define-key
+        :states nil
+        :wk-full-keys nil
+        :keymaps 'leader-map
+        ,@args))
+
+
+    (def-lead
+      ;;buffer
+      "b" 'switch-to-buffer
+      "k" 'kill-buffer
+
+      "p" 'projectile-command-map
+
+      ;;window
+      "w" 'evil-window-map
+
+      ;;other
+      "x" 'execute-extended-command
+      "l" 'counsel-bookmark
+
+      ;;files
+      "ff" 'find-file
+      "fr" 'counsel-recentf
+
+      ;;orgmode
+      "e" 'org-edit-special
+      "d" 'org-babel-demarcate-block
+      "g" 'darkroom-mode
+      )
+    )
+
+
+#+END_SRC
+** COMMENT Easy Keybinds
+#+begin_src emacs-lisp
+  (cua-mode 1)
+  (global-set-key (kbd "C-f") 'isearch-forward)
+  (global-set-key (kbd "C-s") 'save-buffer)
+  (global-set-key (kbd "C-b") 'counsel-switch-buffer)
+  (global-set-key (kbd "C-e") (kbd "C-c '"))
+  (global-set-key (kbd "C-S-p") 'execute-extended-command)
+#+end_src
+* Basic Settings
+** Startup Time
+
+#+begin_src emacs-lisp
+  (add-hook 'emacs-startup-hook #'efs/display-startup-time)
+  (defun efs/display-startup-time ()
+
+    (message "Emacs loaded in %s with %d garbage collections."
+             (format "%.2f seconds"
+                     (float-time
+                      (time-subtract after-init-time before-init-time)))
+             gcs-done))
+
+#+end_src
+
+** Sane defaults
+#+BEGIN_SRC emacs-lisp
+  ;;Install no-litering package
+  (use-package no-littering
+    :config
+    (setq auto-save-file-name-transforms
+          `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
+    (setq custom-file (no-littering-expand-etc-file-name "custom.el")))
+
+
+  ;;disable lockfile
+  (setq create-lockfiles nil)
+
+  ;; Inhibit the startup screen
+  (setq inhibit-startup-screen t)
+  (setq initial-scratch-message "")
+
+  ;; Disable the bell
+  (setq visible-bell t)
+  (setq ring-bell-function 'ignore)
+
+  ;; Make yes and no easier
+  (fset 'yes-or-no-p 'y-or-n-p)
+
+  ;; Disable the blinking cursor
+  ;; (blink-cursor-mode 0)
+
+  ;; Update buffer if file changes
+  (global-auto-revert-mode t)
+
+  ;; Make buffer names unique
+  (setq uniquify-buffer-name-style 'forward)
+
+  ;; Fix the Emacs frame and title
+  (setq-default frame-title-format '("%b")
+                frame-resize-pixelwise t)
+
+  ;; Set Encoding and Language enviroment
+  (set-language-environment "UTF-8")
+  (prefer-coding-system 'utf-8)
+  (set-default-coding-systems 'utf-8)
+  (set-selection-coding-system 'utf-8)
+
+#+END_SRC
+
+** Completion Framework
+#+BEGIN_SRC emacs-lisp
+  (use-package ivy
+    :diminish
+    :config
+    (ivy-mode 1))
+
+
+  (use-package counsel
+    :after ivy
+    :custom
+    (counsel-linux-app-format-function #'counsel-linux-app-format-function-name-only)
+    :config
+    (counsel-mode 1))
+
+  (use-package ivy-rich
+    :after counsel
+    :init
+    (ivy-rich-mode 1))
+#+END_SRC
+* Appearance
+** Font Setup
+#+begin_src emacs-lisp
+  (set-face-attribute 'default nil :family "Ubuntu Mono" :height 150)
+  (set-face-attribute 'fixed-pitch nil :family "Ubuntu Mono")
+  (set-face-attribute 'variable-pitch nil :family "Ubuntu" :height 170)
+#+end_src
+** Color Theme
+#+BEGIN_SRC emacs-lisp
+  (use-package doom-themes
+    :config(load-theme 'doom-one t))
+#+END_SRC
+** COMMENT Disable Toolbars
+#+BEGIN_SRC emacs-lisp
+  (if (fboundp 'tool-bar-mode)
+      (tool-bar-mode -1))
+  (if (fboundp 'scroll-bar-mode)
+      (scroll-bar-mode -1))
+  (if (fboundp 'menu-bar-mode)
+      (menu-bar-mode -1))
+#+END_SRC
+
+** Icon Packages
+#+BEGIN_SRC emacs-lisp
+  (use-package all-the-icons)
+  (use-package all-the-icons-dired
+    :hook (dired-mode . all-the-icons-dired-mode))
+#+END_SRC
+
+** Modeline
+#+BEGIN_SRC emacs-lisp
+  (use-package doom-modeline
+    :init (doom-modeline-mode 1)
+    :config
+    (setq doom-modeline-icon t)
+    )
+#+END_SRC
+
+** which-key
+#+BEGIN_SRC emacs-lisp
+  (use-package which-key
+    :defer 2
+    :config (which-key-mode 1))
+#+END_SRC
+
+** Dashboard
+#+BEGIN_SRC emacs-lisp
+  (use-package dashboard
+    :config
+    (dashboard-setup-startup-hook)
+    (setq dashboard-center-content t)
+    (setq dashboard-set-heading-icons t)
+    (setq dashboard-set-file-icons t)
+    (setq dashboard-startup-banner 'logo)
+    (setq dashboard-banner-logo-title "Click on any of the below items for more information")
+    (setq dashboard-items '((recents  . 5)
+                            (bookmarks . 5)
+                            (projects . 5)))
+    (setq dashboard-projects-switch-function 'counsel-projectile-switch-project-by-name)
+  )
+#+END_SRC
+
+** Line Numbers
+#+begin_src emacs-lisp
+  (global-display-line-numbers-mode t)
+
+  ;; Disable line numbers for some modes
+  (dolist (mode '(org-mode-hook
+                  term-mode-hook
+                  fundamental-mode-hook
+                  shell-mode-hook
+                  eshell-mode-hook))
+    (add-hook mode (lambda () (display-line-numbers-mode 0))))
+#+end_src
+* Org-Mode
+** Appearance
+*** Fonts
+#+begin_src emacs-lisp
+  (custom-set-faces
+   '(org-block ((t (:inherit fixed-pitch))))
+   '(org-block-begin-line ((t (:inherit (shadow fixed-pitch)))))
+   '(org-block-end-line ((t (:inherit org-block-begin-line))))
+   '(org-code ((t (:inherit (shadow fixed-pitch)))))
+   '(org-document-info ((t (:foreground "dark orange"))))
+   '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+   '(org-indent ((t (:inherit (org-hide fixed-pitch)))))
+   '(org-link ((t (:foreground "royal blue" :underline t))))
+   '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+   '(org-property-value ((t (:inherit fixed-pitch))) t)
+   '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+   '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
+   '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
+   '(org-verbatim ((t (:inherit (shadow fixed-pitch)))))
+   '(org-level-1 ((t (:inherit outline-1 :height 1.5))))
+   '(org-level-2 ((t (:inherit outline-2 :height 1.3))))
+   '(org-level-3 ((t (:inherit outline-3 :height 1.1))))
+   '(org-level-4 ((t (:inherit outline-4 :height 1.0))))
+   '(org-level-5 ((t (:inherit outline-5 :height 1.0))))
+   '(org-level-6 ((t (:inherit outline-6 :height 1.0))))
+   '(org-level-7 ((t (:inherit outline-7 :height 1.0))))
+   '(org-level-8 ((t (:inherit outline-8 :height 1.0))))
+   '(org-document-title ((t (:inherit outline-1 :bold t :height 1.5))))
+   )
+#+END_SRC
+*** Special characters
+Make bullet-lists look nice
+#+begin_src emacs-lisp
+  (font-lock-add-keywords 'org-mode '(("^ *\\([-]\\) " (0 (prog1 ()
+                                                            (compose-region (match-beginning 1) (match-end 1) "•"))))))
+#+end_src
+Turn on support for some in line LaTeX figures like rightarrow (just with a \
+in front of it). For Example: \rightarrow or \lambda or \Rightarrow
+#+begin_src emacs-lisp
+  (setq org-pretty-entities t)
+#+end_src
+*** Non Monospace Font
+#+begin_src emacs-lisp
+  (add-hook 'org-mode-hook 'variable-pitch-mode)
+#+end_src
+** Setup
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'org-mode-hook 'org/setup)
+
+  (defun org/setup ()
+    (org-indent-mode)
+    (setq-default fill-column 80)
+    (auto-fill-mode 1))
+
+  ;; (setq org-src-tab-acts-natively t)
+  ;; (setq org-catch-invisible-edits 'show)
+  ;; (setq evil-auto-indent nil))
+#+END_SRC
+** Interaction
+*** Mouse-support
+#+begin_src emacs-lisp
+  (global-set-key (kbd "<mouse-8>") 'previous-buffer)
+  (global-set-key (kbd "<mouse-9>") 'next-buffer)
+
+  (require 'org-mouse)
+#+end_src
+
+*** Structure Templates
+#+begin_src emacs-lisp
+  (require 'org-tempo)
+  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+  (add-to-list 'org-structure-template-alist '("py" . "src python"))
+#+end_src
+** todo-management settings
+#+begin_src emacs-lisp
+  (setq org-log-done 'time)
+#+end_src
+** export-settings
+*** org ignore
+#+BEGIN_SRC emacs-lisp
+  (require 'ox-extra)
+  (ox-extras-activate '(ignore-headlines))
+#+END_SRC
+** source-code-interaction
+#+BEGIN_SRC emacs-lisp
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '(
+     (emacs-lisp . t)
+     (python . t)
+     (java . t)
+     (C . t)
+     ))
+#+END_SRC
+** Org Extensions
+*** Org Download
+#+BEGIN_SRC emacs-lisp
+  (use-package org-download
+    :custom
+    (org-download-method 'directory)
+    (org-download-image-dir "org_images")
+    (org-download-heading-lvl nil)
+    (org-download-timestamp "%Y%m%d-%H%M%S_"))
+#+END_SRC
+*** Org Ref
+#+BEGIN_SRC emacs-lisp
+  (use-package org-ref
+    :defer 10)
+#+END_SRC
+* Development
+** Projects
+#+begin_src emacs-lisp
+  (use-package projectile)
+#+end_src
+** Prog-Languages
+*** Haskell
+#+begin_src emacs-lisp
+  (use-package haskell-mode
+    :mode ("\\.hs\\'" . haskell-mode))
+#+end_src
+*** Python
+#+begin_src emacs-lisp
+  (setq python-shell-interpreter "python3")
+#+end_src
+** Auto-Completion
+*** Company
+#+BEGIN_SRC emacs-lisp
+  (use-package company
+    :config
+    (setq company-idle-delay 0.0)
+    (setq company-minimum-prefix-length 1)
+    (setq company-backends '((company-files company-capf company-yasnippet)))
+    (global-company-mode)
+    )
+#+END_SRC
+#+begin_src emacs-lisp
+  (use-package company-box
+    :after company
+    :hook (company-mode . company-box-mode)
+    :config
+    (setq company-box-backends-colors nil)
+    )
+#+end_src
+*** Yasnippet
+#+begin_src emacs-lisp
+  (use-package yasnippet
+    :after company
+    :config
+    (yas-reload-all)
+    (add-hook 'prog-mode-hook 'yas-minor-mode-on)
+    (add-hook 'latex-mode-hook 'yas-minor-mode-on))
+
+  (use-package yasnippet-snippets)
+#+end_src
+** Paranthesis
+*** Appearance
+**** Rainbow Delimiters
+#+begin_src emacs-lisp
+  (use-package rainbow-delimiters
+    :hook (prog-mode . rainbow-delimiters-mode))
+#+end_src
+**** Show matching parens
+#+begin_src emacs-lisp
+  (show-paren-mode t)
+#+end_src
+*** Auto Close
+#+BEGIN_SRC emacs-lisp
+  (electric-pair-mode t)
+  ;; Disable pairing of < and >
+  (add-hook 'org-mode-hook
+            (lambda () (setq-local electric-pair-inhibit-predicate
+                                   `(lambda (c) (if (char-equal c ?<) t (,electric-pair-inhibit-predicate c))))))
+#+END_SRC
+** Git-integration
+#+begin_src emacs-lisp
+  (use-package magit
+    :commands magit)
+#+end_src
+* Other
+** Collaboration
+This loads an extra Packacke (not yet on Melpa) for Collaborative Editing
+#+BEGIN_SRC emacs-lisp
+  (load-file (expand-file-name "crdt.el" user-emacs-directory))
+#+END_SRC
+
+** Reindent Buffer
+#+begin_src emacs-lisp
+  (defun reindent-whole-buffer ()
+    "Reindent the whole buffer."
+    (interactive)
+    (indent-region (point-min)
+                   (point-max)))
+#+end_src
+
+** COMMENT Dashboard
+#+BEGIN_SRC emacs-lisp
+  (use-package dashboard
+    :config
+    (dashboard-setup-startup-hook)
+    (setq dashboard-center-content t)
+    (setq dashboard-startup-banner 'logo)
+    (setq dashboard-set-navigator t)
+    (setq dashboard-set-heading-icons t)
+    (setq dashboard-set-file-icons t)
+    (setq dashboard-footer-icon "")
+
+    (setq dashboard-banner-logo-title "Click on any of the below items for more information")
+  (setq dashboard-navigator-buttons
+           `(;; line1
+            (
+             ("" "Intro" "View the intro" (lambda (&rest _) (find-file (expand-file-name "intro.org" user-emacs-directory))))
+             ("" "Config" "Edit Config" (lambda (&rest _) (find-file (expand-file-name "config.org" user-emacs-directory))))
+             ("" "Help" "Open the Documentation" (lambda (&rest _) (find-file-read-only (expand-file-name "Help.org" user-emacs-directory))))
+             )
+            )) 
+    )
+
+  
+#+END_SRC
